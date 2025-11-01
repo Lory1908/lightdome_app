@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import '../models/device_state.dart';
@@ -69,5 +70,40 @@ class DeviceApi {
   Future<void> deleteProgram(String name) async {
     await deleteText(_u('/prog/delete?name=${Uri.encodeComponent(name)}'));
   }
-}
 
+  // Pattern RAM (compat)
+  Future<String> uploadPatternText(String text) async {
+    return postBytes(_u('/pattern'), utf8.encode(text), headers: {'Content-Type': 'text/plain'});
+  }
+  Future<void> playRam() async { await postJson(_u('/play'), {}); }
+  Future<void> stopRam() async { await postJson(_u('/stop'), {}); }
+
+  // Save LDY program to device (LittleFS)
+  Future<String> saveProgramLdy({
+    required String name,
+    required List<int> bytes,
+    int sampleRateHz = 100,
+    bool autorun = false,
+  }) async {
+    final qs = 'name=${Uri.encodeComponent(name)}&sr=$sampleRateHz&autorun=${autorun ? 1 : 0}';
+    return postBytes(_u('/prog/save?$qs'), bytes, headers: {'Content-Type': 'application/octet-stream'});
+  }
+
+  Future<String> uploadProgramFile({
+    required String name,
+    required Stream<List<int>> data,
+    required int length,
+    bool autorun = false,
+    void Function(int sent, int total)? onProgress,
+  }) {
+    final qs = 'name=${Uri.encodeComponent(name)}&sr=0&autorun=${autorun ? 1 : 0}';
+    return postStream(
+      _u('/prog/save?$qs'),
+      data,
+      headers: const {'Content-Type': 'application/octet-stream'},
+      contentLength: length,
+      timeout: const Duration(seconds: 30),
+      onProgress: onProgress,
+    );
+  }
+}

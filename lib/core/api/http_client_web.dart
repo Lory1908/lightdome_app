@@ -10,9 +10,9 @@ Future<String> _send(html.HttpRequest req, {Duration timeout = const Duration(se
     if (completed) return; completed = true;
     c.complete(req.responseText ?? '');
   }
-  void completeErr(Object e) {
+  void completeErr(Object e, [StackTrace? st]) {
     if (completed) return; completed = true;
-    c.completeError(e);
+    c.completeError(e, st);
   }
 
   req.timeout = timeout.inMilliseconds;
@@ -21,12 +21,12 @@ Future<String> _send(html.HttpRequest req, {Duration timeout = const Duration(se
     if (status == 0 || (status >= 200 && status < 300)) {
       completeOk();
     } else {
-      completeErr(Exception('HTTP ${req.status}'));
+      completeErr(Exception('HTTP ${req.status}'), StackTrace.current);
     }
   });
-  req.onError.listen((_) => completeErr(Exception('XHR error')));
-  req.onTimeout.listen((_) => completeErr(TimeoutException('timeout', timeout)));
-  req.onAbort.listen((_) => completeErr(Exception('XHR aborted')));
+  req.onError.listen((_) => completeErr(Exception('XHR error'), StackTrace.current));
+  req.onTimeout.listen((_) => completeErr(TimeoutException('timeout', timeout), StackTrace.current));
+  req.onAbort.listen((_) => completeErr(Exception('XHR aborted'), StackTrace.current));
 
   // Start
   req.send(body);
@@ -62,4 +62,19 @@ Future<String> postBytes(String url, List<int> bytes,
 Future<String> deleteText(String url, {Duration timeout = const Duration(seconds: 2)}) async {
   final req = html.HttpRequest()..open('DELETE', url);
   return _send(req, timeout: timeout);
+}
+
+Future<String> postStream(String url, Stream<List<int>> data,
+    {Duration timeout = const Duration(seconds: 10),
+    Map<String, String>? headers,
+    int? contentLength,
+    void Function(int sent, int total)? onProgress}) async {
+  final collected = <int>[];
+  var sent = 0;
+  await for (final chunk in data) {
+    collected.addAll(chunk);
+    sent += chunk.length;
+    onProgress?.call(sent, contentLength ?? sent);
+  }
+  return postBytes(url, collected, timeout: timeout, headers: headers);
 }

@@ -14,17 +14,20 @@ Target prioritario: Android. Il progetto è già eseguibile anche su Web (Edge/C
 
 ## Architettura di alto livello
 
-- UI a tab: Dashboard, Live, Programmi, Impostazioni.
+- UI a tab: Dashboard, Anteprima (facoltativa), Live, Programmi, Impostazioni.
 - Controller centrale con stato (`DeviceController`).
 - Servizi di rete e polling per sincronizzazione continua.
 - Adapter HTTP condizionale: `dart:io` su mobile/desktop e `dart:html` su Web.
 - Compatibilità con API firmware nuove (`/api/state`) e legacy (`/status`, `/set`, `/params`).
+- Persistenza leggera dell'ultimo device (IP/mDNS) tramite `Prefs`.
+- Pattern locali (Sine/Pulse) generati dall'app e inviati in streaming; Mic reattivo; servizi esterni (Spotify/Open provider) disabilitati di default via feature flag. I pacchetti Spotify non sono inclusi di default nel `pubspec` per evitare dipendenze native inutilizzate: vanno aggiunti manualmente quando realmente necessari.
+ - Feature flag: `lib/core/config/app_features.dart`.
 
 ## Navigazione e Tema
 
 - Entrypoint: `lib/main.dart`.
 - Home: `lib/pages/home_scaffold.dart` (barra di navigazione con 4 tab).
-- Tema scuro coerente (Material 3) via `ColorScheme.fromSeed(..., brightness: Brightness.dark)` per evitare assert in debug.
+- Tema scuro coerente (Material 3) via `ColorScheme.fromSeed(..., Brightness.dark)`; layout a card e spaziature migliorate per leggibilità.
 
 ## Modello Dati
 
@@ -84,6 +87,12 @@ Scelte: priorità al percorso compatibile per mantenere bassa latenza e massima 
 - Rate-limiter per il controllo LIVE (slider intensità): invia al massimo ~60 Hz (timer a 16 ms) l’ultimo valore richiesto.
 - Evita flood di richieste durante il drag, mantenendo fluidità.
 
+`lib/core/services/pattern_runner.dart`
+- Genera pattern "sine" e "pulse" a ~60 Hz basandosi su `PatternConfig`.
+- Invia y normalizzato 0..1 via `DeviceApi.setY()`.
+- Mic reattivo: integra `record` v5 per leggere l'ampiezza microfono in tempo reale e mapparla su `y`.
+- Placeholder/flag per modalità future: `songWaveSpotify`, `songWaveOpen` (disabilitate). Per riattivarle servono le dipendenze opzionali (`spotify_sdk`, `spotify`, ecc.) e la configurazione delle chiavi.
+
 ## Controller Centrale
 
 File: `lib/controllers/device_controller.dart`
@@ -95,7 +104,7 @@ Responsabilità:
 
 Scelte:
 - Singolo punto di verità e incapsulamento dettagli di rete.
-- Niente persistenza ancora (arriverà con secure storage/shared_preferences).
+- Persistenza dell'ultimo dispositivo per ripristino automatico all'avvio.
 
 ## UI – Pagine
 
@@ -112,9 +121,27 @@ Scelte:
 - Loop: `SwitchListTile` che invia subito il valore.
 
 `lib/pages/tabs/programs_page.dart`
+- Sezione "Modalità" con menu a tendina: `Nessuna`, `Sine`, `Pulse`, `Mic reattivo` (provider futuri via feature flag).
+- Parametri mostrati solo se pertinenti (es. Duty solo per Pulse). Compensazione gamma opzionale.
 - Campo nome, `Play`, `Stop`, `Delete` sul nome.
 - Lista dei programmi (`/prog/list`) con azioni per elemento.
-- Nota: Upload `.ldy` pianificato.
+- Fallback su dispositivo: selezione di un programma locale da avviare se si desidera un comportamento autonomo.
+- Card "Open provider (file locale)" mostrata solo se `enableOpenProvider == true`.
+- Descrizioni dei controlli attivabili/disattivabili da Impostazioni.
+
+`lib/pages/tabs/preview_page.dart`
+- Anteprima visuale: alone radiale che segue l'intensità (TX) in tempo reale. Utile anche con dispositivo offline.
+
+`lib/core/services/envelope_builder.dart`
+- Estrae un inviluppo (waveform) da un file audio con `just_waveform` e lo campiona alla frequenza richiesta (usato quando abilitato l'Open provider).
+
+`lib/core/ldy/ldy_encoder.dart`
+- Codifica l'inviluppo in formato binario `.ldy` (header "LDY1" + frames uint16 LE) per salvataggio su LittleFS.
+
+## Ambiente e permessi
+
+- Windows: attivare la Modalità Sviluppatore (Settings → For Developers) per supportare i symlink richiesti dai plugin.
+- Microfono: dichiarazioni e richiesta permessi includono `android.permission.RECORD_AUDIO` e `NSMicrophoneUsageDescription` su iOS. Il permesso è richiesto solo quando si avvia la modalità mic reattivo.
 
 `lib/pages/tabs/settings_page.dart`
 - Connessione: inserimento IP/mDNS (con schema opzionale), comandi `Connetti`/`Disconnetti`.
@@ -153,4 +180,3 @@ Onboarding: tab `Impostazioni` → IP/mDNS → `Connetti`.
 - Tema scuro coerente per evitare assert tra `ThemeData` e `ColorScheme`.
 - Su Web, `HttpRequest.status` è stato gestito come nullable (`?? 0`) per compatibilità.
 - Debounce su parametri per evitare saturazione rete; coalescing su y per fluidità.
-

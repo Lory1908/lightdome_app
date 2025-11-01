@@ -1,0 +1,55 @@
+{
+    // VS Code + Dart/Flutter extension
+    // Seleziona una configurazione dal menu Run and Debug (F5).
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flutter • Auto device (debug)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "Flutter • Web (Chrome)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "deviceId": "chrome",
+            "toolArgs": ["--web-renderer", "auto"]
+        },
+        {
+            "name": "Flutter • Web (Edge)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "deviceId": "edge",
+            "toolArgs": ["--web-renderer", "auto"]
+        },
+        {
+            "name": "Flutter • Windows (desktop)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "deviceId": "windows"
+        },
+        {
+            "name": "Flutter • Profile",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "Flutter • Release",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "Flutter • Attach",
+            "type": "dart",
+            "request": "attach"
+        }
+    ]
+}
